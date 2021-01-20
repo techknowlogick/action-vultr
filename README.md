@@ -4,7 +4,7 @@ This action enables you to interact with [vultr](https://www.vultr.com/) service
 
 ## Usage
 
-To install the latest version of `doctl` and use it in GitHub Actions workflows, add the following step:
+To install the latest version of `vultr-cli` and use it in GitHub Actions workflows, add the following step:
 
 ```yaml
     - name: Install vultr-cli
