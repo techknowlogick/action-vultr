@@ -52,7 +52,8 @@ Failed to retrieve latest version; falling back to: ${fallbackVersion}`);
     core.info(`>>> vultr-cli version v${version} installed to ${path}`);
 
     var token = core.getInput('token', { required: true });
-    await exec.exec('vultr-cli account', {env: {'VULTR_API_KEY': token}});
+    process.env.VULTR_API_KEY = token;
+    await exec.exec('vultr-cli account');
     core.info('>>> Successfully installed vultr-cli and confirmed API key');
   }
   catch (error) {
