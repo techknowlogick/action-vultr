@@ -1,15 +1,12 @@
-name: 'GitHub Action for DigitalOcean - doctl'
-description: 'Use doctl to manage your DigitalOcean resources.'
-author: 'Andrew Starr-Bochicchio <asb@digitalocean.com>'
-branding:
-  icon: 'droplet'
-  color: 'blue'
+name: 'GitHub Action for Vultr - vultr-cli'
+description: 'Use vultr-cli to manage your Vultr resources.'
+author: 'techknowlogick <techknowlogick@gitea.io>'
 inputs:
   version:
-    description: 'Version of doctl to install'
+    description: 'Version of vultr-cli to install'
     default: 'latest'
   token:
-    description: 'DigitalOcean API Token'
+    description: 'Vultr API Key'
     required: true
 runs:
   using: 'node12'

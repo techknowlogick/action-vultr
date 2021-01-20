@@ -1,7 +1,7 @@
 {
-  "name": "action-doctl",
+  "name": "action-vultr",
   "version": "2.0.0",
-  "description": "GitHub Action for DigitalOcean - doctl",
+  "description": "GitHub Action for Vultr - vultr-cli",
   "main": "main.js",
   "dependencies": {
     "@actions/core": "^1.2.6",
@@ -20,7 +20,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/digitalocean/action-doctl.git"
+    "url": "git+https://github.com/techknowlogick/action-vultr.git"
   },
   "keywords": [
     "GitHub",
@@ -30,10 +30,10 @@
     "deployment",
     "cloud"
   ],
-  "author": "Andrew Starr-Bochicchio <asb@digitalocean.com>",
+  "author": "techknowlogick <techknowlogick@gitea.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/digitalocean/action-doctl/issues"
+    "url": "https://github.com/techknowlogick/action-vultr/issues"
   },
-  "homepage": "https://github.com/digitalocean/action-doctl#readme"
+  "homepage": "https://github.com/techknowlogick/action-vultr#readme"
 }
