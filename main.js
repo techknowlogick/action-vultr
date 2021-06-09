@@ -4,7 +4,7 @@ const tc = require('@actions/tool-cache');
 const { Octokit } = require("@octokit/rest");
 
 const baseDownloadURL = "https://github.com/vultr/vultr-cli/releases/download"
-const fallbackVersion = "2.1.0"
+const fallbackVersion = "2.5.2"
 const octokit = new Octokit();
 
 async function downloadDoctl(version) {
