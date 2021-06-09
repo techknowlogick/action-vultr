@@ -5307,7 +5307,7 @@ const tc = __webpack_require__(533);
 const { Octokit } = __webpack_require__(889);
 
 const baseDownloadURL = "https://github.com/vultr/vultr-cli/releases/download"
-const fallbackVersion = "2.1.0"
+const fallbackVersion = "2.5.2"
 const octokit = new Octokit();
 
 async function downloadDoctl(version) {
