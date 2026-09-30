@@ -1,81 +1,83 @@
-on: [push, pull_request_target]
 name: Test and lint
 
-jobs:
+on:
+  push:
+  pull_request:
 
+permissions:
+  contents: read
+
+jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm test
 
   package_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: "Ensure that code has been packaged and commited"
-        run: |-
-            npm install
-            npm run package
-            git diff --exit-code dist/index.js || \
-              (echo -e "\nPlease run 'npm run package' and commit the results" && exit 1)
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - name: Ensure that code has been packaged and committed
+        run: |
+          if [ -n "$(git status --porcelain dist/)" ]; then
+            git status --porcelain dist/
+            echo -e "\nPlease run 'npm run package' and commit the results"
+            exit 1
+          fi
 
+  # These jobs need the VULTR_API_KEY secret, which is not available to pull
+  # requests from forks.
   test:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install vultr-cli
+        id: install
+        uses: ./
+        with:
+          token: ${{ secrets.VULTR_API_KEY }}
+
+      - name: Verify installation
+        shell: bash
+        run: vultr-cli version | grep -F "${{ steps.install.outputs.version }}"
+
+      - name: Verify token is available to later steps
+        run: vultr-cli account
+
+  test_custom_version:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v5
 
-      - name: Install doctl
+      - name: Install vultr-cli
         uses: ./
         with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Verify installation
-        run: doctl version
-
-      - name: Verify log-in
-        run: doctl compute region list
-
-  test_custom_version_linux_and_mac:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - uses: actions/checkout@master
-
-      - name: Install doctl
-        uses: ./
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          version: 1.38.0
+          token: ${{ secrets.VULTR_API_KEY }}
+          version: 3.0.0
 
       - name: Verify installation of correct version
-        run: |
-          VERSION=$(doctl version | head -1 | cut -f3 -d' ' | cut -f1 -d'-')
-          if [ "$VERSION" != "1.38.0" ]; then exit 1; fi
-
-      - name: Verify log-in
-        run: doctl compute region list
-
-  test_custom_version_windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@master
-
-      - name: Install doctl
-        uses: ./
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          version: 1.38.0
-
-      - name: Verify installation of correct version
-        run: |
-          $VERSION = (doctl version | head -1 | cut -f3 -d' ' | cut -f1 -d'-')
-          If (-NOT  ($VERSION -eq "1.38.0")) { exit 1 }
-
-      - name: Verify log-in
-        run: doctl compute region list
+        shell: bash
+        run: vultr-cli version | grep -F "3.0.0"
