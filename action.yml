@@ -3,11 +3,17 @@ description: 'Use vultr-cli to manage your Vultr resources.'
 author: 'techknowlogick <techknowlogick@gitea.io>'
 inputs:
   version:
-    description: 'Version of vultr-cli to install'
+    description: 'Version of vultr-cli to install, e.g. "3.0.0". Defaults to the latest release.'
     default: 'latest'
   token:
-    description: 'Vultr API Key'
-    required: true
+    description: 'Vultr API key. If set, it is checked and exported as VULTR_API_KEY for later steps in the job. Leave empty to only install the CLI.'
+    required: false
+  github-token:
+    description: 'GitHub token used to look up vultr-cli releases, to avoid unauthenticated API rate limits.'
+    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+outputs:
+  version:
+    description: 'The version of vultr-cli that was installed.'
 runs:
-  using: 'node12'
+  using: 'node24'
   main: 'dist/index.js'

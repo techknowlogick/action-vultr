@@ -1,62 +1,110 @@
-const core = require('@actions/core');
-const exec = require('@actions/exec');
-const tc = require('@actions/tool-cache');
-const { Octokit } = require("@octokit/rest");
+import { readFile } from 'node:fs/promises';
+import * as core from '@actions/core';
+import * as exec from '@actions/exec';
+import * as tc from '@actions/tool-cache';
+import { HttpClient } from '@actions/http-client';
+import {
+  findBinaryDir,
+  findChecksumAsset,
+  normalizeVersion,
+  parseChecksums,
+  selectAsset,
+  sha256File,
+} from './lib.js';
 
-const baseDownloadURL = "https://github.com/vultr/vultr-cli/releases/download"
-const fallbackVersion = "2.5.2"
-const octokit = new Octokit();
+const TOOL = {
+  name: 'vultr-cli',
+  repo: 'vultr/vultr-cli',
+  tokenEnv: 'VULTR_API_KEY',
+  verifyArgs: ['account'],
+};
 
-async function downloadDoctl(version) {
-    if (process.platform === 'win32') {
-        const doctlDownload = await tc.downloadTool(`${baseDownloadURL}/v${version}/vultr-cli_${version}_windows_64-bit.zip`);
-        return tc.extractZip(doctlDownload);
+async function getRelease(version, githubToken) {
+  const client = new HttpClient(`action-${TOOL.name}`);
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (githubToken) {
+    headers.Authorization = `Bearer ${githubToken}`;
+  }
+
+  const base = `https://api.github.com/repos/${TOOL.repo}/releases`;
+  const urls = version === 'latest'
+    ? [`${base}/latest`]
+    : [`${base}/tags/v${version}`, `${base}/tags/${version}`];
+  for (const url of urls) {
+    const response = await client.getJson(url, headers);
+    if (response.result) {
+      return response.result;
     }
-    if (process.platform === 'darwin') {
-        const doctlDownload = await tc.downloadTool(`${baseDownloadURL}/v${version}/vultr-cli_${version}_macOs_64-bit.tar.gz`);
-        return tc.extractTar(doctlDownload);
-    }
-    const doctlDownload = await tc.downloadTool(`${baseDownloadURL}/v${version}/vultr-cli_${version}_linux_64-bit.tar.gz`);
-    return tc.extractTar(doctlDownload);
+  }
+  throw new Error(`No ${TOOL.name} release found for version "${version}" in ${TOOL.repo}`);
+}
+
+async function verifyChecksum(assets, asset, archivePath) {
+  const checksumAsset = findChecksumAsset(assets);
+  if (!checksumAsset) {
+    core.warning(`Release has no checksum file; skipping integrity check of ${asset.name}`);
+    return;
+  }
+  const checksumPath = await tc.downloadTool(checksumAsset.browser_download_url);
+  const expected = parseChecksums(await readFile(checksumPath, 'utf8')).get(asset.name);
+  if (!expected) {
+    throw new Error(`${checksumAsset.name} has no entry for ${asset.name}`);
+  }
+  const actual = await sha256File(archivePath);
+  if (actual !== expected) {
+    throw new Error(`Checksum mismatch for ${asset.name}: expected ${expected}, got ${actual}`);
+  }
+  core.info(`Verified SHA-256 checksum of ${asset.name}`);
+}
+
+async function download(release, version) {
+  const asset = selectAsset(release.assets, process.platform, process.arch);
+  core.info(`Downloading ${asset.browser_download_url}`);
+  const archivePath = await tc.downloadTool(asset.browser_download_url);
+  await verifyChecksum(release.assets, asset, archivePath);
+
+  const extracted = /\.zip$/i.test(asset.name)
+    ? await tc.extractZip(archivePath)
+    : await tc.extractTar(archivePath);
+  const binary = process.platform === 'win32' ? `${TOOL.name}.exe` : TOOL.name;
+  const binDir = await findBinaryDir(extracted, binary);
+  if (!binDir) {
+    throw new Error(`Could not find ${binary} in ${asset.name}`);
+  }
+  return tc.cacheDir(binDir, TOOL.name, version, process.arch);
 }
 
 async function run() {
-  try { 
-    var version = core.getInput('version');
-    if ((!version) || (version.toLowerCase() === 'latest')) {
-        version = await octokit.repos.getLatestRelease({
-            owner: 'vultr',
-            repo: 'vultr-cli'
-        }).then(result => {
-            return result.data.name;
-        }).catch(error => {
-            // GitHub rate-limits are by IP address and runners can share IPs.
-            // This mostly effects macOS where the pool of runners seems limited.
-            // Fallback to a known version if API access is rate limited.
-            core.warning(`${error.message}
-
-Failed to retrieve latest version; falling back to: ${fallbackVersion}`);
-            return fallbackVersion;
-        });
+  try {
+    const token = core.getInput('token');
+    if (token) {
+      core.setSecret(token);
     }
-    if (version.charAt(0) === 'v') {
-        version = version.substr(1);
-    }
+    const githubToken = core.getInput('github-token');
 
-    var path = tc.find("vultr-cli", version);
-    if (!path) {
-        const installPath = await downloadDoctl(version);
-        path = await tc.cacheDir(installPath, 'vultr-cli', version);
-    }
-    core.addPath(path);
-    core.info(`>>> vultr-cli version v${version} installed to ${path}`);
+    const requested = normalizeVersion(core.getInput('version') || 'latest');
+    const isLatest = requested.toLowerCase() === 'latest';
 
-    var token = core.getInput('token', { required: true });
-    process.env.VULTR_API_KEY = token;
-    await exec.exec('vultr-cli account');
-    core.info('>>> Successfully installed vultr-cli and confirmed API key');
-  }
-  catch (error) {
+    let version = isLatest ? undefined : requested;
+    let toolPath = version && tc.find(TOOL.name, version, process.arch);
+    if (!toolPath) {
+      const release = await getRelease(isLatest ? 'latest' : requested, githubToken);
+      version = normalizeVersion(release.tag_name);
+      toolPath = tc.find(TOOL.name, version, process.arch) || await download(release, version);
+    }
+    core.addPath(toolPath);
+    core.setOutput('version', version);
+    core.info(`>>> ${TOOL.name} v${version} installed to ${toolPath}`);
+
+    if (!token) {
+      core.info(`>>> No token given; skipping API key check and ${TOOL.tokenEnv} export`);
+      return;
+    }
+    // Exported so the token is also available to later steps in the job.
+    core.exportVariable(TOOL.tokenEnv, token);
+    await exec.exec(TOOL.name, TOOL.verifyArgs);
+    core.info(`>>> Successfully installed ${TOOL.name} and confirmed API key`);
+  } catch (error) {
     core.setFailed(error.message);
   }
 }

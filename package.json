@@ -1,22 +1,16 @@
 {
   "name": "action-vultr",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "GitHub Action for Vultr - vultr-cli",
+  "type": "module",
   "main": "main.js",
-  "dependencies": {
-    "@actions/core": "^1.2.6",
-    "@actions/exec": "^1.0.4",
-    "@actions/tool-cache": "^1.5.5",
-    "@octokit/rest": "^17.9.2"
-  },
-  "devDependencies": {
-    "@zeit/ncc": "^0.22.3",
-    "eslint": "^6.8.0"
+  "engines": {
+    "node": ">=20"
   },
   "scripts": {
-    "lint": "eslint main.js",
-    "test": "npm install; npm run lint",
-    "package": "ncc build main.js -o dist"
+    "lint": "eslint .",
+    "test": "npm run lint && node --test",
+    "package": "ncc build main.js -o dist --license licenses.txt"
   },
   "repository": {
     "type": "git",
@@ -25,7 +19,8 @@
   "keywords": [
     "GitHub",
     "Actions",
-    "DigitalOcean",
+    "Vultr",
+    "vultr-cli",
     "CI/CD",
     "deployment",
     "cloud"
@@ -35,5 +30,17 @@
   "bugs": {
     "url": "https://github.com/techknowlogick/action-vultr/issues"
   },
-  "homepage": "https://github.com/techknowlogick/action-vultr#readme"
+  "homepage": "https://github.com/techknowlogick/action-vultr#readme",
+  "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/exec": "^3.0.0",
+    "@actions/http-client": "^4.0.1",
+    "@actions/tool-cache": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vercel/ncc": "^0.45.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0"
+  }
 }
