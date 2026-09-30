@@ -37,10 +37,7 @@ jobs:
             exit 1
           fi
 
-  # These jobs need the VULTR_API_KEY secret, which is not available to pull
-  # requests from forks.
   test:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -52,18 +49,12 @@ jobs:
       - name: Install vultr-cli
         id: install
         uses: ./
-        with:
-          token: ${{ secrets.VULTR_API_KEY }}
 
       - name: Verify installation
         shell: bash
         run: vultr-cli version | grep -F "${{ steps.install.outputs.version }}"
 
-      - name: Verify token is available to later steps
-        run: vultr-cli account
-
   test_custom_version:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -75,7 +66,6 @@ jobs:
       - name: Install vultr-cli
         uses: ./
         with:
-          token: ${{ secrets.VULTR_API_KEY }}
           version: 3.0.0
 
       - name: Verify installation of correct version

@@ -35249,8 +35249,10 @@ async function download(release, version) {
 
 async function run() {
   try {
-    const token = getInput('token', { required: true });
-    core_setSecret(token);
+    const token = getInput('token');
+    if (token) {
+      core_setSecret(token);
+    }
     const githubToken = getInput('github-token');
 
     const requested = normalizeVersion(getInput('version') || 'latest');
@@ -35267,6 +35269,10 @@ async function run() {
     setOutput('version', version);
     info(`>>> ${TOOL.name} v${version} installed to ${toolPath}`);
 
+    if (!token) {
+      info(`>>> No token given; skipping API key check and ${TOOL.tokenEnv} export`);
+      return;
+    }
     // Exported so the token is also available to later steps in the job.
     exportVariable(TOOL.tokenEnv, token);
     await exec_exec(TOOL.name, TOOL.verifyArgs);

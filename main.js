@@ -76,8 +76,10 @@ async function download(release, version) {
 
 async function run() {
   try {
-    const token = core.getInput('token', { required: true });
-    core.setSecret(token);
+    const token = core.getInput('token');
+    if (token) {
+      core.setSecret(token);
+    }
     const githubToken = core.getInput('github-token');
 
     const requested = normalizeVersion(core.getInput('version') || 'latest');
@@ -94,6 +96,10 @@ async function run() {
     core.setOutput('version', version);
     core.info(`>>> ${TOOL.name} v${version} installed to ${toolPath}`);
 
+    if (!token) {
+      core.info(`>>> No token given; skipping API key check and ${TOOL.tokenEnv} export`);
+      return;
+    }
     // Exported so the token is also available to later steps in the job.
     core.exportVariable(TOOL.tokenEnv, token);
     await exec.exec(TOOL.name, TOOL.verifyArgs);
